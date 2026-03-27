@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+
+# ============================================================
+# Universal System Updater
+# License: GNU General Public License v3.0
+# ============================================================
+
+VERSION="1.0.0"
+
+set -e
+
+INSTALL_SNAP=false
+INSTALL_FLATPAK=false
+
+# -------------------------------
+# Helper functions
+# -------------------------------
+has_cmd() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+print_help() {
+    cat <<EOF
+Universal System Updater
+
+Usage:
+  $0 [OPTIONS]
+
+Options:
+  --install-snap       Install Snap if not present
+  --install-flatpak    Install Flatpak if not present
+  --help               Show this help message
+  --version            Show version
+
+Description:
+  Detects installed package managers and runs full system upgrades.
+  Only executes package managers that are available on the system.
+
+License:
+  GNU GPL v3.0
+EOF
+}
+
+print_version() {
+    echo "Universal System Updater v$VERSION"
+}
+
+# -------------------------------
+# Argument parsing
+# -------------------------------
+for arg in "$@"; do
+    case "$arg" in
+        --install-snap)
+            INSTALL_SNAP=true
+            ;;
+        --install-flatpak)
+            INSTALL_FLATPAK=true
+            ;;
+        --help)
+            print_help
+            exit 0
+            ;;
+        --version)
+            print_version
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Use --help for usage."
+            exit 1
+            ;;
+    esac
+done
+
+echo "==============================="
+echo "  Universal System Updater"
+echo "==============================="
+
+# -------------------------------
+# Optional installers
+# -------------------------------
+install_snap() {
+    if has_cmd apt; then
+        sudo apt update && sudo apt install -y snapd
+    elif has_cmd dnf; then
+        sudo dnf install -y snapd
+        sudo ln -s /var/lib/snapd/snap /snap || true
+    elif has_cmd pacman; then
+        echo "Snap install via pacman not standard. Skipping."
+    fi
+}
+
+install_flatpak() {
+    if has_cmd apt; then
+        sudo apt update && sudo apt install -y flatpak
+    elif has_cmd dnf; then
+        sudo dnf install -y flatpak
+    elif has_cmd pacman; then
+        sudo pacman -S --noconfirm flatpak
+    fi
+}
+
+# Install if requested AND not present
+if $INSTALL_SNAP && ! has_cmd snap; then
+    echo "[INFO] Installing Snap..."
+    install_snap
+fi
+
+if $INSTALL_FLATPAK && ! has_cmd flatpak; then
+    echo "[INFO] Installing Flatpak..."
+    install_flatpak
+fi
+
+echo ""
+echo ">>> Running updates (detected managers only)..."
+
+# -------------------------------
+# System package managers
+# -------------------------------
+
+if has_cmd apt; then
+    echo "[APT]"
+    sudo apt update
+    sudo apt full-upgrade -y
+    sudo apt autoremove -y
+    sudo apt autoclean
+fi
+
+if has_cmd dnf; then
+    echo "[DNF]"
+    sudo dnf upgrade --refresh -y
+fi
+
+if has_cmd yum; then
+    echo "[YUM]"
+    sudo yum update -y
+fi
+
+if has_cmd pacman; then
+    echo "[Pacman]"
+    sudo pacman -Syu --noconfirm
+fi
+
+if has_cmd zypper; then
+    echo "[Zypper]"
+    sudo zypper refresh
+    sudo zypper update -y
+fi
+
+if has_cmd emerge; then
+    echo "[Portage]"
+    sudo emerge --sync
+    sudo emerge -uDNav @world
+fi
+
+# -------------------------------
+# AUR helpers
+# -------------------------------
+
+if has_cmd yay; then
+    echo "[Yay]"
+    yay -Syu --noconfirm
+fi
+
+if has_cmd paru; then
+    echo "[Paru]"
+    paru -Syu --noconfirm
+fi
+
+# -------------------------------
+# Universal package managers
+# -------------------------------
+
+if has_cmd flatpak; then
+    echo "[Flatpak]"
+    flatpak update -y
+fi
+
+if has_cmd snap; then
+    echo "[Snap]"
+    sudo snap refresh
+fi
+
+if has_cmd nix-env; then
+    echo "[Nix]"
+    nix-channel --update
+    nix-env -u '*'
+fi
+
+if has_cmd brew; then
+    echo "[Homebrew]"
+    brew update
+    brew upgrade
+    brew cleanup
+fi
+
+echo ""
+echo "==============================="
+echo "  Update Complete!"
+echo "==============================="
