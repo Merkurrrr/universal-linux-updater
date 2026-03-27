@@ -1,0 +1,2 @@
+DOWNLOAD THE FILE RAW .zip, NOT git clone, THIS IS A LOCAL FILE, NOT A NETWORK FILE
+GNU General Public License
