@@ -1,200 +1,229 @@
 #!/usr/bin/env bash
 
-# ============================================================
-# Universal System Updater
-# License: GNU General Public License v3.0
-# ============================================================
-
-VERSION="1.0.0"
+VERSION="1.1.R"
 
 set -e
 
+DRY_RUN=false
 INSTALL_SNAP=false
 INSTALL_FLATPAK=false
 
-# -------------------------------
-# Helper functions
-# -------------------------------
+UPDATED=()
+
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+RESET="\033[0m"
+
+log() { echo -e "${BLUE}[INFO]${RESET} $1"; }
+ok() { echo -e "${GREEN}[OK]${RESET} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${RESET} $1"; }
+
+run() {
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${YELLOW}[DRY-RUN]${RESET} $*"
+    else
+        eval "$@"
+    fi
+}
+
 has_cmd() {
     command -v "$1" >/dev/null 2>&1
 }
 
 print_help() {
-    cat <<EOF
-Universal System Updater
+cat <<EOF
+ULU v1.1.R
 
 Usage:
   $0 [OPTIONS]
 
 Options:
-  --install-snap       Install Snap if not present
-  --install-flatpak    Install Flatpak if not present
-  --help               Show this help message
-  --version            Show version
-
-Description:
-  Detects installed package managers and runs full system upgrades.
-  Only executes package managers that are available on the system.
-
-License:
-  GNU GPL v3.0
+  --dry-run
+  --install-snap
+  --install-flatpak
+  --help
+  --version
 EOF
 }
 
 print_version() {
-    echo "Universal System Updater v$VERSION"
+    echo "ULU v$VERSION"
 }
 
-# -------------------------------
-# Argument parsing
-# -------------------------------
 for arg in "$@"; do
     case "$arg" in
-        --install-snap)
-            INSTALL_SNAP=true
-            ;;
-        --install-flatpak)
-            INSTALL_FLATPAK=true
-            ;;
-        --help)
-            print_help
-            exit 0
-            ;;
-        --version)
-            print_version
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $arg"
-            echo "Use --help for usage."
-            exit 1
-            ;;
+        --dry-run) DRY_RUN=true ;;
+        --install-snap) INSTALL_SNAP=true ;;
+        --install-flatpak) INSTALL_FLATPAK=true ;;
+        --help) print_help; exit 0 ;;
+        --version) print_version; exit 0 ;;
+        *) warn "Unknown option: $arg"; exit 1 ;;
     esac
 done
 
-echo "==============================="
-echo "  Universal System Updater"
-echo "==============================="
+echo "ULU v$VERSION"
+echo ""
 
-# -------------------------------
-# Optional installers
-# -------------------------------
 install_snap() {
+    log "Installing Snap"
     if has_cmd apt; then
-        sudo apt update && sudo apt install -y snapd
+        run "sudo apt update && sudo apt install -y snapd"
     elif has_cmd dnf; then
-        sudo dnf install -y snapd
-        sudo ln -s /var/lib/snapd/snap /snap || true
+        run "sudo dnf install -y snapd"
     elif has_cmd pacman; then
-        echo "Snap install via pacman not standard. Skipping."
+        warn "Snap not supported via pacman"
     fi
 }
 
 install_flatpak() {
+    log "Installing Flatpak"
     if has_cmd apt; then
-        sudo apt update && sudo apt install -y flatpak
+        run "sudo apt install -y flatpak"
     elif has_cmd dnf; then
-        sudo dnf install -y flatpak
+        run "sudo dnf install -y flatpak"
     elif has_cmd pacman; then
-        sudo pacman -S --noconfirm flatpak
+        run "sudo pacman -S flatpak"
     fi
 }
 
-# Install if requested AND not present
-if $INSTALL_SNAP && ! has_cmd snap; then
-    echo "[INFO] Installing Snap..."
+if [ "$INSTALL_SNAP" = true ] && ! has_cmd snap; then
     install_snap
 fi
 
-if $INSTALL_FLATPAK && ! has_cmd flatpak; then
-    echo "[INFO] Installing Flatpak..."
+if [ "$INSTALL_FLATPAK" = true ] && ! has_cmd flatpak; then
     install_flatpak
 fi
 
-echo ""
-echo ">>> Running updates (detected managers only)..."
-
-# -------------------------------
-# System package managers
-# -------------------------------
+log "Running updates"
 
 if has_cmd apt; then
-    echo "[APT]"
-    sudo apt update
-    sudo apt full-upgrade -y
-    sudo apt autoremove -y
-    sudo apt autoclean
+    log "APT"
+    run "sudo apt update"
+    run "sudo apt full-upgrade -y"
+    run "sudo apt autoremove -y"
+    run "sudo apt autoclean"
+    UPDATED+=("apt")
+    ok "APT done"
 fi
 
 if has_cmd dnf; then
-    echo "[DNF]"
-    sudo dnf upgrade --refresh -y
+    log "DNF"
+    run "sudo dnf upgrade --refresh -y"
+    UPDATED+=("dnf")
+    ok "DNF done"
 fi
 
 if has_cmd yum; then
-    echo "[YUM]"
-    sudo yum update -y
+    log "YUM"
+    run "sudo yum update -y"
+    UPDATED+=("yum")
+    ok "YUM done"
 fi
 
 if has_cmd pacman; then
-    echo "[Pacman]"
-    sudo pacman -Syu --noconfirm
+    log "Pacman"
+    run "sudo pacman -Syu"
+    UPDATED+=("pacman")
+    ok "Pacman done"
 fi
 
 if has_cmd zypper; then
-    echo "[Zypper]"
-    sudo zypper refresh
-    sudo zypper update -y
+    log "Zypper"
+    run "sudo zypper refresh"
+    run "sudo zypper update -y"
+    UPDATED+=("zypper")
+    ok "Zypper done"
 fi
 
 if has_cmd emerge; then
-    echo "[Portage]"
-    sudo emerge --sync
-    sudo emerge -uDNav @world
+    warn "Portage detected"
+    run "sudo emerge --sync"
+    run "sudo emerge -uDNav @world"
+    UPDATED+=("portage")
+    ok "Portage done"
 fi
 
-# -------------------------------
-# AUR helpers
-# -------------------------------
-
 if has_cmd yay; then
-    echo "[Yay]"
-    yay -Syu --noconfirm
+    log "Yay"
+    run "yay -Syu"
+    UPDATED+=("yay")
+    ok "Yay done"
 fi
 
 if has_cmd paru; then
-    echo "[Paru]"
-    paru -Syu --noconfirm
+    log "Paru"
+    run "paru -Syu"
+    UPDATED+=("paru")
+    ok "Paru done"
 fi
 
-# -------------------------------
-# Universal package managers
-# -------------------------------
-
 if has_cmd flatpak; then
-    echo "[Flatpak]"
-    flatpak update -y
+    log "Flatpak"
+    run "flatpak update -y"
+    UPDATED+=("flatpak")
+    ok "Flatpak done"
 fi
 
 if has_cmd snap; then
-    echo "[Snap]"
-    sudo snap refresh
+    log "Snap"
+    run "sudo snap refresh"
+    UPDATED+=("snap")
+    ok "Snap done"
 fi
 
 if has_cmd nix-env; then
-    echo "[Nix]"
-    nix-channel --update
-    nix-env -u '*'
+    log "Nix"
+    run "nix-channel --update"
+    run "nix-env -u '*'"
+    UPDATED+=("nix")
+    ok "Nix done"
 fi
 
 if has_cmd brew; then
-    echo "[Homebrew]"
-    brew update
-    brew upgrade
-    brew cleanup
+    log "Homebrew"
+    run "brew update"
+    run "brew upgrade"
+    run "brew cleanup"
+    UPDATED+=("brew")
+    ok "Homebrew done"
 fi
 
 echo ""
-echo "==============================="
-echo "  Update Complete!"
-echo "==============================="
+echo "Update Summary"
+
+if [ ${#UPDATED[@]} -eq 0 ]; then
+    warn "No package managers detected"
+else
+    for u in "${UPDATED[@]}"; do
+        echo "✔ $u"
+    done
+fi
+
+echo ""
+
+read -p "Reboot now? (10-second countdown) [Y/N]: " REBOOT_CHOICE
+
+if [[ "$REBOOT_CHOICE" =~ ^[Yy]$ ]]; then
+    log "Rebooting in 10 seconds... press CTRL+C to cancel"
+
+    for i in {10..1}; do
+        echo -ne "\rRebooting in $i seconds..."
+        sleep 1
+    done
+
+    echo ""
+
+    if [ "$DRY_RUN" = true ]; then
+        warn "[DRY-RUN] reboot skipped"
+    else
+        log "Rebooting"
+        sudo reboot
+    fi
+else
+    ok "Reboot skipped"
+fi
+
+echo ""
+ok "Done"
