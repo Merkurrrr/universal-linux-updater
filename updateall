@@ -34,7 +34,7 @@ has_cmd() {
 
 print_help() {
 cat <<EOF
-ULU v1.1.R
+updateall v1.1.R
 
 Usage:
   $0 [OPTIONS]
@@ -45,11 +45,18 @@ Options:
   --install-flatpak
   --help
   --version
+  --news
 EOF
 }
 
 print_version() {
-    echo "ULU v$VERSION"
+    echo "updateall v$VERSION"
+}
+
+news() {
+    echo "Update list: 
+          FIXES: Fixed Emerge, homebrew and nix bugs that caused system break (tested in VM)
+          new additions: added a Reboot Y/N (idk why)"
 }
 
 for arg in "$@"; do
@@ -59,6 +66,7 @@ for arg in "$@"; do
         --install-flatpak) INSTALL_FLATPAK=true ;;
         --help) print_help; exit 0 ;;
         --version) print_version; exit 0 ;;
+        --news) news; exit 0 ;;
         *) warn "Unknown option: $arg"; exit 1 ;;
     esac
 done
