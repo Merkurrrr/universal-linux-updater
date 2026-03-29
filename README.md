@@ -31,7 +31,7 @@ git clone https://github.com/Merkurrrr/universal-linux-updater
 extract the `updateall` script and put it in
 /usr/local/bin/
 
-after you put the script in ISR, run this:
+after you put the script in USR, run this:
 
 ````bash
 sudo chmod +x /usr/local/bin/updateall
