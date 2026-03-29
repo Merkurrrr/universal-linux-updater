@@ -1,6 +1,45 @@
-download the file either as .zip or use git clone https://github.com/Merkurrrr/universal-linux-updater
-GNU General Public License
+# Universal Linux Updater
 
-usage: download the file as ZIP/GIT clone, put the "updateall" file into /usr/local/bin and run "sudo chmod +x /usr/local/bin/updateall"
+---
 
-REQUIRES BASH SHELL, IF YOU USE ZSH/FISH SHELL, DO NOT DELETE BASH SHELL
+## What is this?
+a universal Linux updater (ULU),
+covers cross-distro (Bazzite isnt included)
+
+---
+
+## Why is this made?
+idk i was bored, so i made smth
+
+---
+
+## Why use GPL license?
+because this updater covers ALMOST
+all distros
+
+---
+
+# Installation
+
+get the file as either .zip or 
+use:
+
+````bash
+git clone https://github.com/Merkurrrr/universal-linux-updater
+````
+
+extract the `updateall` script and put it in
+/usr/local/bin/
+
+after you put the script in ISR, run this:
+
+````bash
+sudo chmod +x /usr/local/bin/updateall
+````
+
+now just run updateall --help
+in your terminal and its done!
+
+---
+
+# Have fun!
